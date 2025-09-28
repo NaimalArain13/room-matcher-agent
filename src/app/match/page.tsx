@@ -209,6 +209,7 @@ export default function MatchPage() {
                   result={m}
                   parsedProfile={parsedProfile}
                   wingmanText={results.wingman[m.roommate_id]}
+                  allMatches={results.matches}
                 />
               ))}
             </div>

@@ -31,6 +31,7 @@ export function MatchCard({ result, parsedProfile, wingmanText }: MatchCardProps
   const [forcedInclude, setForcedInclude] = useState(false)
   const [adviceLoading, setAdviceLoading] = useState(false)
   const [adviceText, setAdviceText] = useState<string | null>(wingmanText ?? null)
+  const [recommendationText, setRecommendationText] = useState<string | null>(null)
   const { toast } = useToast()
 
   const factors = computeFactors(parsedProfile, result)
@@ -122,14 +123,31 @@ export function MatchCard({ result, parsedProfile, wingmanText }: MatchCardProps
                           ({} as Record<string, unknown>),
                       ],
                     }
-                    const response = await getWingmanAdivce(payload)
-                    const textCandidate =
-                      (response && (response.advice || response.message || response.text)) ||
-                      JSON.stringify(response)
-                    setAdviceText(String(textCandidate))
+                    const response: any = await getWingmanAdivce(payload)
+                    let adviceCandidate: string | null = null
+                    let recommendationCandidate: string | null = null
+
+                    if (response && response.advice) {
+                      if (typeof response.advice === "string") {
+                        adviceCandidate = response.advice
+                      } else if (typeof response.advice === "object") {
+                        adviceCandidate = response.advice.advice ?? null
+                        recommendationCandidate = response.advice.recommendation ?? null
+                      }
+                    } else if (response && (response.message || response.text)) {
+                      adviceCandidate = String(response.message || response.text)
+                    }
+
+                    if (!adviceCandidate) {
+                      adviceCandidate = JSON.stringify(response)
+                    }
+
+                    setAdviceText(String(adviceCandidate))
+                    setRecommendationText(recommendationCandidate)
                   } catch (err) {
                     const message = err instanceof Error ? err.message : "Failed to fetch advice"
                     setAdviceText("Advice not available.")
+                    setRecommendationText(null)
                     toast({ title: "Wingman error", description: message })
                   } finally {
                     setAdviceLoading(false)
@@ -144,9 +162,20 @@ export function MatchCard({ result, parsedProfile, wingmanText }: MatchCardProps
               <DialogHeader>
                 <DialogTitle>Wingman advice</DialogTitle>
               </DialogHeader>
-              <p className="text-sm leading-relaxed">
-                {adviceLoading ? "Loading advice…" : adviceText || "Advice not available."}
-              </p>
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="font-medium">Advice:</span>
+                  <div className="leading-relaxed">
+                    {adviceLoading ? "Loading advice…" : adviceText || "Advice not available."}
+                  </div>
+                </div>
+                {recommendationText ? (
+                  <div>
+                    <span className="font-medium">Recommendation:</span>
+                    <div className="leading-relaxed">{recommendationText}</div>
+                  </div>
+                ) : null}
+              </div>
               <div className="text-sm text-muted-foreground pt-2">
                 • Try agreeing on quiet hours 11pm–7am
                 <br />• Consider a weekly cleaning rota
