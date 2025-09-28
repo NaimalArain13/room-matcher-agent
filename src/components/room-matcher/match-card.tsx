@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import type { MatchResultItem, ParsedProfile } from "@/types/matching"
 import { cn } from "@/lib/utils"
+import { getWingmanAdivce } from "@/api/getWingmanAdivce"
+import { useToast } from "@/hooks/use-toast"
 
 interface MatchCardProps {
   result: MatchResultItem
@@ -27,6 +29,9 @@ function computeFactors(a: ParsedProfile | null, b: MatchResultItem): string[] {
 export function MatchCard({ result, parsedProfile, wingmanText }: MatchCardProps) {
   const [open, setOpen] = useState(false)
   const [forcedInclude, setForcedInclude] = useState(false)
+  const [adviceLoading, setAdviceLoading] = useState(false)
+  const [adviceText, setAdviceText] = useState<string | null>(wingmanText ?? null)
+  const { toast } = useToast()
 
   const factors = computeFactors(parsedProfile, result)
   const hasRedFlags = result.red_flags.length > 0
@@ -105,13 +110,43 @@ export function MatchCard({ result, parsedProfile, wingmanText }: MatchCardProps
 
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="default">Ask Wingman for advice</Button>
+              <Button
+                variant="default"
+                onClick={async () => {
+                  setAdviceLoading(true)
+                  try {
+                    const payload = {
+                      filtered_matches: [result as unknown as Record<string, unknown>],
+                      profiles: [
+                        (parsedProfile as unknown as Record<string, unknown>) ||
+                          ({} as Record<string, unknown>),
+                      ],
+                    }
+                    const response = await getWingmanAdivce(payload)
+                    const textCandidate =
+                      (response && (response.advice || response.message || response.text)) ||
+                      JSON.stringify(response)
+                    setAdviceText(String(textCandidate))
+                  } catch (err) {
+                    const message = err instanceof Error ? err.message : "Failed to fetch advice"
+                    setAdviceText("Advice not available.")
+                    toast({ title: "Wingman error", description: message })
+                  } finally {
+                    setAdviceLoading(false)
+                  }
+                }}
+                disabled={adviceLoading}
+              >
+                {adviceLoading ? "Asking…" : "Ask Wingman for advice"}
+              </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Wingman advice</DialogTitle>
               </DialogHeader>
-              <p className="text-sm leading-relaxed">{wingmanText || "Advice not available."}</p>
+              <p className="text-sm leading-relaxed">
+                {adviceLoading ? "Loading advice…" : adviceText || "Advice not available."}
+              </p>
               <div className="text-sm text-muted-foreground pt-2">
                 • Try agreeing on quiet hours 11pm–7am
                 <br />• Consider a weekly cleaning rota

@@ -7,6 +7,8 @@ import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { Label } from "@/components/ui/label"
+import { runPipeline } from "@/api/run_pipeline"
+import { uploadFileToFirebase } from "@/api/firebase"
 
 interface FileUploadProps {
   onComplete: () => void
@@ -15,6 +17,7 @@ interface FileUploadProps {
 
 export function FileUpload({ onComplete, disabled }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const fileRef = useRef<File | null>(null)
   const { toast } = useToast()
   const [progress, setProgress] = useState<number>(0)
   const [uploading, setUploading] = useState<boolean>(false)
@@ -34,6 +37,22 @@ export function FileUpload({ onComplete, disabled }: FileUploadProps) {
               toast({
                 title: "File uploaded — parsing now…",
               })
+              // Upload to Firebase first, then pass URL to pipeline
+              if (fileRef.current) {
+                const file = fileRef.current
+                uploadFileToFirebase(file)
+                  .then((publicUrl) => runPipeline(publicUrl))
+                  .then(() => {
+                    toast({ title: "Pipeline started" })
+                  })
+                  .catch((err: unknown) => {
+                    const message = err instanceof Error ? err.message : "Failed to upload to Firebase or start pipeline"
+                    toast({ title: "Upload failed", description: message })
+                  })
+                  .finally(() => {
+                    fileRef.current = null
+                  })
+              }
               onComplete()
             }, 300)
             return 100
@@ -52,7 +71,10 @@ export function FileUpload({ onComplete, disabled }: FileUploadProps) {
   }
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("e.target.files", e.target.files)
     if (!e.target.files || e.target.files.length === 0) return
+    const file = e.target.files[0]
+    fileRef.current = file
     setUploading(true)
   }
 
