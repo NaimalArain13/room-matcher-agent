@@ -1,0 +1,35 @@
+{
+    "matches": [
+      {
+        "roommate_id": "R-101",
+        "score": 85,
+        "short": {
+          "city": "Islamabad",
+          "area": "G-10",
+          "budget_PKR": 14000,
+          "cleanliness": "Tidy",
+          "sleep_schedule": "Night owl"
+        },
+        "red_flags": []
+      },
+      {
+        "roommate_id": "R-202",
+        "score": 42,
+        "short": {
+          "city": "Islamabad",
+          "area": "G-11",
+          "budget_PKR": 10000,
+          "cleanliness": "Messy",
+          "sleep_schedule": "Early"
+        },
+        "red_flags": ["sleep_mismatch"]
+      }
+    ],
+    "candidate_count": 125,
+    "used_fallback": false,
+    "wingman": {
+      "R-101": "Both of you are night owls and have similar budgets. Suggest agreeing on quiet hours 11pm-7am and a weekly cleaning rota.",
+      "R-202": "This match has a sleep schedule mismatch. If you are willing to compromise on bedtime or use noise cancelling, it could work."
+    }
+  }
+  

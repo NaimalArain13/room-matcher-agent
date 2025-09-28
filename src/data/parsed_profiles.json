@@ -1,0 +1,39 @@
+[
+    {
+      "id": "U-001",
+      "city": "Islamabad",
+      "area": "G-11",
+      "budget_PKR": 13000,
+      "sleep_schedule": "Night owl",
+      "cleanliness": "Tidy",
+      "noise_tolerance": "Quiet",
+      "study_habits": "Online classes",
+      "food_pref": "Flexible",
+      "notes": "Hostel seat available, prefers tidy roommate"
+    },
+    {
+      "id": "U-002",
+      "city": "Lahore",
+      "area": "Model Town",
+      "budget_PKR": 18000,
+      "sleep_schedule": "Early",
+      "cleanliness": "Moderate",
+      "noise_tolerance": "Moderate",
+      "study_habits": "Library",
+      "food_pref": "Non-veg",
+      "notes": "Looking for calm environment"
+    },
+    {
+      "id": "U-003",
+      "city": "Karachi",
+      "area": "Clifton",
+      "budget_PKR": 22000,
+      "sleep_schedule": "Normal",
+      "cleanliness": "Tidy",
+      "noise_tolerance": "Moderate",
+      "study_habits": "Mixed",
+      "food_pref": "Flexible",
+      "notes": "Okay with occasional guests"
+    }
+  ]
+  
