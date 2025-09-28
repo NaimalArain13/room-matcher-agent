@@ -29,7 +29,7 @@ export default function Hero() {
         {/* Right Side Random Image */}
         <div className="relative w-full h-64 md:h-96 rounded-2xl overflow-hidden shadow-lg">
           <Image
-            src="https://source.unsplash.com/random/800x600/?students,roommates"
+            src="https://res.cloudinary.com/db3yy1i0j/image/upload/v1759023648/images_2_i7sdlh.jpg"
             alt="Students finding roommates"
             fill
             className="object-cover"
