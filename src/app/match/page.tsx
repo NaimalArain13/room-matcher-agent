@@ -51,56 +51,76 @@ export default function MatchPage() {
   const runningRef = useRef(false)
 
   const startRun = async () => {
-    if (!parsedProfile || runningRef.current) return
-    runningRef.current = true
-    setDone(false)
-    setResults(null)
+  if (!parsedProfile || runningRef.current) return
+  runningRef.current = true
+  setDone(false)
+  setResults(null)
 
-    setSteps(STEPS.map((label) => ({ label, status: "idle" })))
+  setSteps(STEPS.map((label) => ({ label, status: "idle" })))
 
-    const next = (index: number, partial?: Partial<StepState>) => {
-      setSteps((prev) => {
-        const copy = prev.map((s, i) => (i === index ? { ...s, ...partial } : s))
-        return copy
-      })
-    }
-
-    try {
-      for (let i = 0; i < STEPS.length; i++) {
-        next(i, { status: "running" })
-        const delay = 800 + Math.floor(Math.random() * 400)
-
-        if (STEPS[i] === "Match Scorer") {
-          await new Promise((r) => setTimeout(r, delay))
-          const base = RESULTS_BY_PROFILE[selectedSample]
-          const used_fallback = qaFallbackScoring ? true : base.used_fallback
-          setResults({ ...base, used_fallback })
-        } else if (STEPS[i] === "Wingman") {
-          // Call actual wingman API here
-          await new Promise((r) => setTimeout(r, delay))
-          
-          // Optionally fetch real wingman advice:
-          // try {
-          //   const wingmanData = await getWingmanAdivce({
-          //     filtered_matches: results?.matches || [],
-          //     profiles: [parsedProfile]
-          //   })
-          //   // Merge wingman data into results
-          // } catch (err) {
-          //   console.error("Wingman API failed:", err)
-          // }
-        } else {
-          await new Promise((r) => setTimeout(r, delay))
-        }
-        next(i, { status: "done" })
-      }
-    } catch (err) {
-      console.error("Agent run failed:", err)
-    } finally {
-      runningRef.current = false
-      setDone(true)
-    }
+  const next = (index: number, partial?: Partial<StepState>) => {
+    setSteps((prev) => {
+      const copy = prev.map((s, i) => (i === index ? { ...s, ...partial } : s))
+      return copy
+    })
   }
+
+  try {
+    for (let i = 0; i < STEPS.length; i++) {
+      next(i, { status: "running" })
+      
+      if (STEPS[i] === "Profile Reader") {
+        // Already done during upload
+        await new Promise((r) => setTimeout(r, 800))
+        
+      } else if (STEPS[i] === "Match Scorer") {
+        // Call REAL matching API
+        try {
+          const baseUrl = process.env.NEXT_PUBLIC_API_SERVER
+          if (!baseUrl) throw new Error("API server not configured")
+          
+          const response = await fetch(`${baseUrl}/api/match-profile`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(parsedProfile)
+          })
+          
+          if (!response.ok) {
+            throw new Error(`Matching failed: ${response.status}`)
+          }
+          
+          const matchData = await response.json()
+          setResults(matchData)
+          
+        } catch (err) {
+          console.error("Matching API error:", err)
+          // Fallback to mock data if API fails
+          const base = RESULTS_BY_PROFILE[selectedSample]
+          const used_fallback = true
+          setResults({ ...base, used_fallback })
+        }
+        
+      } else if (STEPS[i] === "Red Flag") {
+        // Red flag detection already done in matching endpoint
+        await new Promise((r) => setTimeout(r, 800))
+        
+      } else if (STEPS[i] === "Wingman") {
+        // Wingman advice already generated in matching endpoint
+        await new Promise((r) => setTimeout(r, 800))
+        
+      } else {
+        await new Promise((r) => setTimeout(r, 800))
+      }
+      
+      next(i, { status: "done" })
+    }
+  } catch (err) {
+    console.error("Agent run failed:", err)
+  } finally {
+    runningRef.current = false
+    setDone(true)
+  }
+}
 
   const onUploadParsed = (p: ParsedProfile) => {
     if (qaParsingError) {
