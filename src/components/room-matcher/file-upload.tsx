@@ -1,14 +1,17 @@
 "use client"
 
+import type React from "react"
 import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { Label } from "@/components/ui/label"
 import { runPipeline } from "@/api/run_pipeline"
-// import { supabase } from "@/lib/supabase" // Commented out for now
+import { getFirebase } from "@/lib/firebase"
+import { ref, set } from "firebase/database"
+import type { ParsedProfile } from "@/types/matching"
 
 interface FileUploadProps {
-  onComplete: () => void
+  onComplete: (profile?: ParsedProfile) => void
   disabled?: boolean
 }
 
@@ -26,7 +29,6 @@ export function FileUpload({ onComplete, disabled }: FileUploadProps) {
   const [currentFileName, setCurrentFileName] = useState<string | null>(null)
   const [currentFileSizeStr, setCurrentFileSizeStr] = useState<string | null>(null)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
-  // removed simulated progress; handle upload directly on change
 
   const onPick = () => {
     if (disabled || uploading) return
@@ -38,18 +40,40 @@ export function FileUpload({ onComplete, disabled }: FileUploadProps) {
     const k = 1024
     const sizes = ["B", "KB", "MB", "GB", "TB"]
     const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
   const isAllowedByExt = (name: string) => /\.(docx|pdf|png|jpg|jpeg)$/i.test(name)
 
+  const uploadToCloudinary = async (file: File): Promise<string> => {
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+    if (!cloudName || !uploadPreset) {
+      throw new Error(
+        "Cloudinary is not configured. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET.",
+      )
+    }
+    const form = new FormData()
+    form.append("file", file)
+    form.append("upload_preset", uploadPreset)
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+      method: "POST",
+      body: form,
+    })
+    const json = await res.json()
+    if (!res.ok) {
+      throw new Error(json?.error?.message || "Cloudinary upload failed")
+    }
+    return json.secure_url as string
+  }
+
   const onChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("e.target.files", e.target.files)
+    console.log(" onChange -> files:", e.target.files) // debug
     if (!e.target.files || e.target.files.length === 0) return
     const file = e.target.files[0]
 
     const allowedMimes = [
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "application/pdf",
       "image/png",
       "image/jpeg",
@@ -73,39 +97,49 @@ export function FileUpload({ onComplete, disabled }: FileUploadProps) {
     fileRef.current = file
 
     try {
-      // TODO: Supabase integration commented out for now
-      // 1. Upload to Supabase bucket
-      // const fileName = `${Date.now()}-${file.name}`
-      // const { data, error } = await supabase.storage
-      //   .from("uploads") // bucket name
-      //   .upload(`docs/${fileName}`, file)
+      // 1) Upload to Cloudinary to obtain a public URL (for storage/sharing)
+      const fileUrl = await uploadToCloudinary(file)
 
-      // if (error) throw error
+      // 2) Save file metadata + URL to Firebase Realtime Database
+      const { db } = getFirebase()
+      const id = typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}`
+      const uploadedAtIso = new Date().toISOString()
+      await set(ref(db, `uploads/${id}`), {
+        name: file.name,
+        size: file.size,
+        sizeStr: formatBytes(file.size),
+        url: fileUrl,
+        uploadedAt: uploadedAtIso,
+      })
 
-      // 2. Construct URL in the specified format
-      // const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-      // const projectRef = supabaseUrl.split('//')[1].split('.')[0] // Extract project-ref from URL
-      // const fileUrl = `https://${projectRef}.supabase.co/storage/v1/object/public/uploads/docs/${fileName}`
 
-      // console.log("Got file URL:", fileUrl)
+      console.log("[v0] Calling runPipeline with File object") 
+      const pipelineResult = await runPipeline(file)
 
-      toast({ title: "✅ File selected", description: file.name })
+      const parsedProfile: ParsedProfile | undefined =
+        pipelineResult?.parsed_profile ??
+        pipelineResult?.result?.parsed_profile ??
+        pipelineResult?.result?.profile ??
+        pipelineResult?.profile
 
-      // 3. Send file URL to backend API (runPipeline) - DISABLED
-      // await runPipeline(fileUrl)
-      // toast({ title: "Pipeline started" })
+      if (!parsedProfile) {
+        console.log("pipelineResult (no parsed_profile found):", pipelineResult) // debug
+        throw new Error("Backend did not return a parsed profile")
+      }
 
-      // 4. Record file in list
       setUploadedFiles((prevArr) => [
         { name: file.name, sizeStr: formatBytes(file.size), uploadedAt: new Date().toLocaleString() },
         ...prevArr,
       ])
 
-      // 5. Notify parent
-      onComplete()
+      onComplete(parsedProfile)
+
+      // 6) Toast success
+      toast({ title: "✅ Uploaded", description: "File uploaded and parsed successfully." })
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to process file"
-      toast({ title: "File processing failed", description: message })
+      console.log("File processing error:", err) 
+      toast({ title: "❌ File processing failed", description: message })
     } finally {
       setUploading(false)
       fileRef.current = null
@@ -127,12 +161,7 @@ export function FileUpload({ onComplete, disabled }: FileUploadProps) {
           onChange={onChange}
         />
 
-        <Button
-          type="button"
-          onClick={onPick}
-          disabled={disabled || uploading}
-          aria-haspopup="true"
-        >
+        <Button type="button" onClick={onPick} disabled={disabled || uploading} aria-haspopup="true">
           {uploading ? (
             <span className="inline-flex items-center gap-2">
               {/* small inline loader */}
@@ -162,7 +191,9 @@ export function FileUpload({ onComplete, disabled }: FileUploadProps) {
             <p className="text-sm text-green-600 mt-1">
               📄 <span className="font-medium">{currentFileName}</span>
               {currentFileSizeStr ? <span className="ml-2 text-muted-foreground">· {currentFileSizeStr}</span> : null}
-              <span className="ml-3 inline-block rounded-full bg-green-100 text-green-800 px-2 py-0.5 text-xs font-semibold">Ready</span>
+              <span className="ml-3 inline-block rounded-full bg-green-100 text-green-800 px-2 py-0.5 text-xs font-semibold">
+                Ready
+              </span>
             </p>
           )}
 
@@ -184,7 +215,9 @@ export function FileUpload({ onComplete, disabled }: FileUploadProps) {
               <li key={idx} className="flex items-center justify-between bg-surface-50 p-2 rounded">
                 <div>
                   <div className="text-sm font-medium">{f.name}</div>
-                  <div className="text-xs text-muted-foreground">{f.sizeStr} · {f.uploadedAt}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {f.sizeStr} · {f.uploadedAt}
+                  </div>
                 </div>
                 <div className="text-xs text-green-600 font-semibold">Uploaded</div>
               </li>

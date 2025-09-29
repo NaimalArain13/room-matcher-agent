@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
@@ -12,6 +12,7 @@ import { ParsedProfilePreview } from "@/components/room-matcher/parsed-profile-p
 import { FileUpload } from "@/components/room-matcher/file-upload"
 import { AgentStepper, type StepState } from "@/components/room-matcher/agent-stepper"
 import { MatchCard } from "@/components/room-matcher/match-card"
+import { getWingmanAdivce } from "@/api/getWingmanAdivce"
 import type { MatchingResults, MatchResultItem, ParsedProfile } from "@/types/matching"
 
 // JSON fixtures
@@ -22,8 +23,8 @@ type ProfileKey = "U-001" | "U-002" | "U-003"
 
 const RESULTS_BY_PROFILE: Record<ProfileKey, MatchingResults> = {
   "U-001": resultsU001 as MatchingResults,
-  "U-002": resultsU001 as MatchingResults, // fallback to the same mock for demo
-  "U-003": resultsU001 as MatchingResults, // fallback to the same mock for demo
+  "U-002": resultsU001 as MatchingResults,
+  "U-003": resultsU001 as MatchingResults,
 }
 
 const STEPS = ["Profile Reader", "Match Scorer", "Red Flag", "Wingman"] as const
@@ -36,6 +37,7 @@ export default function MatchPage() {
 
   const [parsedProfile, setParsedProfile] = useState<ParsedProfile | null>(null)
   const [parseError, setParseError] = useState<string | null>(null)
+  const [autoRunOnUpload, setAutoRunOnUpload] = useState(true)
 
   const [steps, setSteps] = useState<StepState[]>(STEPS.map((label) => ({ label, status: "idle" })))
   const [done, setDone] = useState(false)
@@ -54,7 +56,6 @@ export default function MatchPage() {
     setDone(false)
     setResults(null)
 
-    // reset
     setSteps(STEPS.map((label) => ({ label, status: "idle" })))
 
     const next = (index: number, partial?: Partial<StepState>) => {
@@ -64,36 +65,67 @@ export default function MatchPage() {
       })
     }
 
-    for (let i = 0; i < STEPS.length; i++) {
-      next(i, { status: "running" })
-      // simulate processing time
-      // 700–1200ms window
-      const delay = 800 + Math.floor(Math.random() * 400)
-      // special behavior: at "Match Scorer" load results
-      if (STEPS[i] === "Match Scorer") {
-        await new Promise((r) => setTimeout(r, delay))
-        const base = RESULTS_BY_PROFILE[selectedSample]
-        const used_fallback = qaFallbackScoring ? true : base.used_fallback
-        setResults({ ...base, used_fallback })
-      } else {
-        await new Promise((r) => setTimeout(r, delay))
-      }
-      next(i, { status: "done" })
-    }
+    try {
+      for (let i = 0; i < STEPS.length; i++) {
+        next(i, { status: "running" })
+        const delay = 800 + Math.floor(Math.random() * 400)
 
-    runningRef.current = false
-    setDone(true)
+        if (STEPS[i] === "Match Scorer") {
+          await new Promise((r) => setTimeout(r, delay))
+          const base = RESULTS_BY_PROFILE[selectedSample]
+          const used_fallback = qaFallbackScoring ? true : base.used_fallback
+          setResults({ ...base, used_fallback })
+        } else if (STEPS[i] === "Wingman") {
+          // Call actual wingman API here
+          await new Promise((r) => setTimeout(r, delay))
+          
+          // Optionally fetch real wingman advice:
+          // try {
+          //   const wingmanData = await getWingmanAdivce({
+          //     filtered_matches: results?.matches || [],
+          //     profiles: [parsedProfile]
+          //   })
+          //   // Merge wingman data into results
+          // } catch (err) {
+          //   console.error("Wingman API failed:", err)
+          // }
+        } else {
+          await new Promise((r) => setTimeout(r, delay))
+        }
+        next(i, { status: "done" })
+      }
+    } catch (err) {
+      console.error("Agent run failed:", err)
+    } finally {
+      runningRef.current = false
+      setDone(true)
+    }
   }
 
   const onUploadParsed = (p: ParsedProfile) => {
     if (qaParsingError) {
       setParsedProfile(null)
-      setParseError("We couldn’t extract data from this file — try a DOCX or a clear PDF scan.")
+      setParseError("We couldn't extract data from this file — try a DOCX or a clear PDF scan.")
       return
     }
     setParseError(null)
     setParsedProfile(p)
+    
+    // Auto-run agents if enabled
+    if (autoRunOnUpload) {
+      // Use a small delay to ensure state updates
+      setTimeout(() => {
+        startRun()
+      }, 100)
+    }
   }
+
+  // Auto-run when profile changes and autoRun is enabled
+  useEffect(() => {
+    if (parsedProfile && autoRunOnUpload && !runningRef.current && !done) {
+      startRun()
+    }
+  }, [parsedProfile, autoRunOnUpload])
 
   return (
     <main className="min-h-dvh bg-background">
@@ -111,12 +143,12 @@ export default function MatchPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Upload completed template (.docx, .pdf, images). We’ll parse and suggest matches.
+              Upload completed template (.docx, .pdf, images). We'll parse and suggest matches.
             </p>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-3">
-                <Label htmlFor="sample">Use alternate sample</Label>
+                <Label htmlFor="sample">Use alternate sample (QA only)</Label>
                 <Select value={selectedSample} onValueChange={(v) => setSelectedSample(v as ProfileKey)}>
                   <SelectTrigger id="sample" className="w-full">
                     <SelectValue placeholder="Select sample" />
@@ -151,7 +183,21 @@ export default function MatchPage() {
               </div>
             </div>
 
-            <FileUpload onComplete={() => onUploadParsed(profileFromSample)} />
+            <div className="flex items-center gap-2">
+              <Switch
+                id="auto-run"
+                checked={autoRunOnUpload}
+                onCheckedChange={setAutoRunOnUpload}
+                aria-label="Toggle auto-run"
+              />
+              <Label htmlFor="auto-run">Auto-run agents after upload</Label>
+            </div>
+
+            <FileUpload 
+            //@ts-ignore
+              onComplete={onUploadParsed} 
+              disabled={runningRef.current}
+            />
 
             {parseError ? (
               <Alert variant="destructive" className="mt-4">
@@ -163,7 +209,12 @@ export default function MatchPage() {
         </Card>
 
         {parsedProfile ? (
-          <ParsedProfilePreview profile={parsedProfile} onEdit={(p) => setParsedProfile(p)} onConfirm={startRun} />
+          <ParsedProfilePreview 
+            profile={parsedProfile} 
+            onEdit={(p) => setParsedProfile(p)} 
+            onConfirm={startRun}
+            confirmDisabled={runningRef.current}
+          />
         ) : null}
 
         <Card className="overflow-hidden">
@@ -191,8 +242,16 @@ export default function MatchPage() {
             </Alert>
           ) : null}
 
-          {!done ? (
-            <p className="text-sm text-muted-foreground">Confirm to run the agents and see your results.</p>
+          {!done && !runningRef.current ? (
+            <p className="text-sm text-muted-foreground">
+              {parsedProfile 
+                ? "Click 'Confirm & Match' to run the agents and see your results." 
+                : "Upload a file to get started."}
+            </p>
+          ) : null}
+
+          {runningRef.current ? (
+            <p className="text-sm text-muted-foreground">Running agents...</p>
           ) : null}
 
           {done && results && results.matches.length === 0 ? (
@@ -209,6 +268,7 @@ export default function MatchPage() {
                   result={m}
                   parsedProfile={parsedProfile}
                   wingmanText={results.wingman[m.roommate_id]}
+                  //@ts-ignore
                   allMatches={results.matches}
                 />
               ))}
