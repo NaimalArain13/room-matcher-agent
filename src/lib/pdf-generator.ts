@@ -2,7 +2,7 @@ import { PDFDocument, rgb, StandardFonts } from "pdf-lib"
 
 export async function generatePDF() {
   const pdfDoc = await PDFDocument.create()
-  const page = pdfDoc.addPage([595, 842])
+  const page = pdfDoc.addPage([595, 842]) // A4 size
   const { height } = page.getSize()
 
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
@@ -10,31 +10,32 @@ export async function generatePDF() {
 
   let y = height - 50
 
-  // Title
+  // ===== Title =====
   page.drawText("Roommate Preference Form Template", {
     x: 50,
     y,
-    size: 18,
+    size: 20,
     font: boldFont,
     color: rgb(0, 0, 0.8),
   })
   y -= 40
 
-  // Intro Instructions
-  const instructions =
-    "Please fill out this form with your roommate preferences. " +
+  // ===== Intro Instructions =====
+  const intro =
+    "Please fill out this form with your roommate preferences.\n" +
     "Download this template, convert it to .docx, fill it in Word, and upload it back."
-  page.drawText(instructions, {
+  page.drawText(intro, {
     x: 50,
     y,
     size: 12,
     font,
     color: rgb(0, 0, 0),
     maxWidth: 500,
+    lineHeight: 14,
   })
-  y -= 60
+  y -= 70
 
-  // Personal Info Heading
+  // ===== Personal Info Heading =====
   page.drawText("Personal Information", {
     x: 50,
     y,
@@ -44,7 +45,7 @@ export async function generatePDF() {
   })
   y -= 30
 
-  // Fields
+  // ===== Fields =====
   const fields = [
     "City",
     "Area/Neighborhood",
@@ -68,10 +69,10 @@ export async function generatePDF() {
     y -= 25
   })
 
-  y -= 20
+  y -= 30
 
-  // Field Descriptions
-  page.drawText("Field Descriptions:", {
+  // ===== Field Descriptions =====
+  page.drawText("Field Descriptions", {
     x: 50,
     y,
     size: 14,
@@ -100,14 +101,15 @@ export async function generatePDF() {
       font,
       color: rgb(0, 0, 0),
       maxWidth: 500,
+      lineHeight: 13,
     })
     y -= 20
   })
 
-  y -= 20
+  y -= 30
 
-  // Final Instructions Section
-  page.drawText("Instructions:", {
+  // ===== Instructions Section =====
+  page.drawText("Instructions", {
     x: 50,
     y,
     size: 14,
@@ -136,10 +138,10 @@ export async function generatePDF() {
     y -= 18
   })
 
-  // Save & Download PDF
+  // ===== Save & Download PDF =====
   const pdfBytes = await pdfDoc.save()
-   // @ts-expect-error: Blob constructor type inference issue with Uint8Array
-  const blob = new Blob([pdfBytes], { type: "application/pdf" }) // ✅ type-safe (Uint8Array is accepted)
+  // @ts-expect-error: Blob constructor type inference issue with Uint8Array
+  const blob = new Blob([pdfBytes], { type: "application/pdf" })
   const link = document.createElement("a")
   link.href = URL.createObjectURL(blob)
   link.download = "roommate_preference_template.pdf"
