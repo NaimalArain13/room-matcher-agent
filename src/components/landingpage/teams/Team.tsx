@@ -8,7 +8,7 @@ type Member = { name: string; role: string; initials: string; color: string }
 export function Team() {
   const members: Member[] = [
     { name: "Naimal Salahuddin", role: "Team Lead | Full Stack Developer", initials: "NS", color: "from-blue-500 to-indigo-600" },
-    { name: "Nirma Qureshi", role: "Product Architect | Full Stack Developer", initials: "NQ", color: "from-purple-500 to-pink-600" },
+    { name: "Nirma Qureshi", role: "Full Stack Developer", initials: "NQ", color: "from-purple-500 to-pink-600" },
     { name: "Syed Shurem Ali", role: "Frontend Developer | Documentation Creator", initials: "SA", color: "from-emerald-500 to-teal-600" },
     { name: "Taha Saif", role: "Full Stack Developer", initials: "TS", color: "from-orange-500 to-red-600" },
   ]
