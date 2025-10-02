@@ -30,12 +30,17 @@ export function ParsedProfilePreview({ profile, onEdit, onConfirm, confirmDisabl
     setDialogOpen(false)
   }
 
-  const formatValue = (value: any): string => {
-    if (value === null || value === undefined || (typeof value === "string" && value.trim() === "")) {
+  const formatValue = (value: string | number | boolean | null | undefined): string => {
+    if (
+      value === null ||
+      value === undefined ||
+      (typeof value === "string" && value.trim() === "")
+    ) {
       return "Not specified"
     }
     return String(value)
   }
+  
 
   const rows: Array<[keyof ParsedProfile, string, React.ComponentType<{ className?: string }>]> = [
     ["city", "City", Home],

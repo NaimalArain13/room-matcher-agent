@@ -3,8 +3,6 @@
 import { useEffect, useRef } from "react"
 import { gsap } from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
-import Navbar from "@/components/landingpage/navbar"
-import Footer from "@/components/landingpage/footer"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -125,7 +123,7 @@ export default function AboutPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar />
+ 
 
       <main className="flex-1">
         <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-cyan-50 to-background dark:from-blue-950/20 dark:via-cyan-950/20 dark:to-background">
@@ -146,8 +144,8 @@ export default function AboutPage() {
               </h1>
 
               <p className="text-lg md:text-xl text-muted-foreground leading-relaxed max-w-3xl mx-auto">
-                Room Matcher AI was born from a simple observation: finding the right roommate shouldn't be a game of chance.
-                We're using artificial intelligence to transform how students find compatible living arrangements.
+                Room Matcher AI was born from a simple observation: finding the right roommate shouldn&apos;t be a game of chance.
+                We&apos;re using artificial intelligence to transform how students find compatible living arrangements.
               </p>
             </div>
           </div>
@@ -295,7 +293,7 @@ export default function AboutPage() {
               </Badge>
               <h2 className="text-3xl md:text-4xl font-bold mb-4">Contact Us</h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Have questions? We'd love to hear from you. Send us a message and we'll respond as soon as possible.
+                Have questions? We&apos;d love to hear from you. Send us a message and we&apos;ll respond as soon as possible.
               </p>
             </div>
 
@@ -380,7 +378,8 @@ export default function AboutPage() {
         </section>
       </main>
 
-      <Footer />
+     
     </div>
   )
+
 }

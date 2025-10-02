@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,7 +21,7 @@ import { FlowTracer } from "@/types/trace"
 // JSON fixtures
 import parsedProfilesJson from "@/data/parsed_profiles.json"
 import resultsU001 from "@/data/matching_results_U-001.json"
-import Navbar from "@/components/landingpage/navbar"
+
 
 type ProfileKey = "U-001" | "U-002" | "U-003"
 
@@ -48,11 +48,6 @@ export default function MatchPage() {
   const [steps, setSteps] = useState<StepState[]>(STEPS.map((label) => ({ label, status: "idle" })))
   const [done, setDone] = useState(false)
   const [results, setResults] = useState<MatchingResults | null>(null)
-
-  const profileFromSample = useMemo(
-    () => profiles.find((p) => p.id === selectedSample) || profiles[0],
-    [profiles, selectedSample],
-  )
 
   const runningRef = useRef(false)
   const headerRef = useRef<HTMLDivElement>(null)
@@ -140,7 +135,7 @@ export default function MatchPage() {
     }
   }, [done, results])
 
-  const startRun = async () => {
+  const startRun = useCallback(async () => {
     if (!parsedProfile || runningRef.current) return
     FlowTracer.log('Matching Flow', 'start', { profileId: parsedProfile.id })
     runningRef.current = true
@@ -182,11 +177,11 @@ export default function MatchPage() {
             }
 
             const matchData = await response.json()
-            FlowTracer.log(STEPS[i], 'success', { 
-            matchCount: matchData.matches?.length,
-            candidateCount: matchData.candidate_count,
-            topScore: matchData.matches?.[0]?.score 
-          })
+            FlowTracer.log(STEPS[i], 'success', {
+              matchCount: matchData.matches?.length,
+              candidateCount: matchData.candidate_count,
+              topScore: matchData.matches?.[0]?.score
+            })
             setResults(matchData)
 
           } catch (err) {
@@ -215,9 +210,9 @@ export default function MatchPage() {
 
         next(i, { status: "done" })
       }
-      FlowTracer.log('Matching Flow', 'success', { 
-        totalMatches: results?.matches.length 
-    })
+      FlowTracer.log('Matching Flow', 'success', {
+        totalMatches: results?.matches.length
+      })
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err)
       FlowTracer.log('Matching Flow', 'error', { error: errorMsg })
@@ -226,7 +221,7 @@ export default function MatchPage() {
       runningRef.current = false
       setDone(true)
     }
-  }
+  }, [parsedProfile, selectedSample, results?.matches?.length])
 
   const onUploadParsed = (p: ParsedProfile) => {
     if (qaParsingError) {
@@ -236,11 +231,11 @@ export default function MatchPage() {
       return
     }
 
-    FlowTracer.log('Profile Parsed', 'success', { 
-    id: p.id,
-    city: p.city,
-    area: p.area,
-    budget: p.budget_PKR 
+    FlowTracer.log('Profile Parsed', 'success', {
+      id: p.id,
+      city: p.city,
+      area: p.area,
+      budget: p.budget_PKR
     })
 
     setParseError(null)
@@ -257,7 +252,7 @@ export default function MatchPage() {
     if (parsedProfile && autoRunOnUpload && !runningRef.current && !done) {
       startRun()
     }
-  }, [parsedProfile, autoRunOnUpload])
+  }, [parsedProfile, autoRunOnUpload, startRun, done])
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 dark:from-slate-950 dark:via-blue-950 dark:to-cyan-950">
@@ -269,9 +264,6 @@ export default function MatchPage() {
       <div className="fixed top-40 right-20 w-72 h-72 bg-cyan-400/30 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000" />
       <div className="fixed bottom-20 left-1/2 w-72 h-72 bg-purple-400/30 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000" />
 
-      <header ref={headerRef} className="sticky top-0 z-50 w-full border-b border-blue-200/50 dark:border-blue-800/50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl shadow-lg">
-        <Navbar/>
-      </header>
 
       <section className="relative mx-auto max-w-7xl px-4 py-8 space-y-8">
         {/* Upload Section */}
@@ -345,10 +337,11 @@ export default function MatchPage() {
               </div>
 
               <FileUpload
-              //@ts-ignore
+                // @ts-expect-error: FileUpload onComplete typing differs, accepts ParsedProfile here
                 onComplete={onUploadParsed}
                 disabled={runningRef.current}
               />
+
 
               {parseError ? (
                 <Alert variant="destructive" className="animate-in slide-in-from-top-2 border-2">
@@ -468,8 +461,9 @@ export default function MatchPage() {
                     result={m}
                     parsedProfile={parsedProfile}
                     wingmanText={results.wingman[m.roommate_id]}
-                    //@ts-ignore
+                   // @ts-expect-error: MatchCard expects a stricter type, passing full matches for context
                     allMatches={results.matches}
+
                   />
                 </div>
               ))}
@@ -480,4 +474,3 @@ export default function MatchPage() {
     </main>
   )
 }
-

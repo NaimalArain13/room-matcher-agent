@@ -211,7 +211,7 @@ export function TraceViewer() {
                             </div>
                           </div>
                           
-                          {log.data && (
+                          {Boolean(log.data) && (
                             <button className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/5">
                               {isExpanded ? (
                                 <ChevronDown className="w-4 h-4" />
@@ -222,7 +222,7 @@ export function TraceViewer() {
                           )}
                         </div>
                         
-                        {log.data && isExpanded && (
+                        {Boolean(log.data) && isExpanded && (
                           <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
@@ -231,7 +231,7 @@ export function TraceViewer() {
                             className="mt-3 pt-3 border-t border-black/10 dark:border-white/10"
                           >
                             <pre className="text-xs bg-slate-900 dark:bg-slate-950 text-slate-100 p-3 rounded-lg overflow-x-auto">
-                              {JSON.stringify(log.data, null, 2)}
+                              {JSON.stringify(log.data as Record<string, unknown>, null, 2)}
                             </pre>
                           </motion.div>
                         )}

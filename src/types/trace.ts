@@ -1,32 +1,32 @@
-type LogStatus = 'start' | 'progress' | 'success' | 'error'
+type LogStatus = "start" | "progress" | "success" | "error"
 
-interface LogEntry {
+interface LogEntry<T = unknown> {
   timestamp: Date
   step: string
   status: LogStatus
-  data?: any
+  data?: T
 }
 
 class FlowTracerClass {
   private logs: LogEntry[] = []
 
-  log(step: string, status: LogStatus, data?: any) {
-    const entry: LogEntry = {
+  log<T = unknown>(step: string, status: LogStatus, data?: T) {
+    const entry: LogEntry<T> = {
       timestamp: new Date(),
       step,
       status,
       data
     }
     this.logs.push(entry)
-    
+
     const emoji = {
-      start: '🚀',
-      progress: '⏳',
-      success: '✅',
-      error: '❌'
+      start: "🚀",
+      progress: "⏳",
+      success: "✅",
+      error: "❌"
     }[status]
-    
-    console.log(`${emoji} [${step}]`, status, data || '')
+
+    console.log(`${emoji} [${step}]`, status, data ?? "")
   }
 
   getLogs() {
@@ -35,7 +35,7 @@ class FlowTracerClass {
 
   clear() {
     this.logs = []
-    console.log('🗑️ Trace cleared')
+    console.log("🗑️ Trace cleared")
   }
 
   exportTrace() {
@@ -45,15 +45,17 @@ class FlowTracerClass {
       status: log.status,
       data: log.data
     }))
-    
-    const blob = new Blob([JSON.stringify(trace, null, 2)], { type: 'application/json' })
+
+    const blob = new Blob([JSON.stringify(trace, null, 2)], {
+      type: "application/json"
+    })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
+    const a = document.createElement("a")
     a.href = url
     a.download = `room-matcher-trace-${Date.now()}.json`
     a.click()
     URL.revokeObjectURL(url)
-    console.log('💾 Trace exported')
+    console.log("💾 Trace exported")
   }
 }
 
